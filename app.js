@@ -14,26 +14,53 @@ document.getElementById('formSolicitudProcedimiento').addEventListener('submit',
   const fechaOpcion3      = document.getElementById('fechaOpcion3').value;
   const horarioPreferente = document.getElementById('horarioPreferente').value;
 
-  // Construir el objeto con los datos de la solicitud médica
-  const serviceRequestData = {
-    paciente: nombrePaciente,
-    fechaConsulta: fechaConsulta,
-    medico: nombreMedico,
-    cedulaMedico: cedulaMedico,
-    diagnostico: diagnostico,
-    procedimiento: procedimiento,
-    justificacion: justificacion,
-    fechasDisponibles: [fechaOpcion1, fechaOpcion2, fechaOpcion3],
-    horarioPreferente: horarioPreferente
+  // Crear un identificador único para la solicitud (puedes usar un UUID si es necesario)
+  const identificadorSolicitud = 'solicitud-' + Date.now();
+
+  // Construir el recurso FHIR ServiceRequest
+  const serviceRequestFHIR = {
+    resourceType: "ServiceRequest",
+    id: identificadorSolicitud,
+    status: "active",  // o "draft", según el flujo de trabajo
+    intent: "order",
+    priority: "urgent",  // puede ser: routine | urgent | asap | stat
+    code: {
+      text: procedimiento  // Ejemplo: "Apendicectomía"
+    },
+    subject: {
+      reference: "Patient/" + nombrePaciente.replace(/\s/g, '-').toLowerCase(),
+      display: nombrePaciente
+    },
+    requester: {
+      reference: "Practitioner/" + cedulaMedico,
+      display: nombreMedico
+    },
+    authoredOn: fechaConsulta,
+    reasonCode: [
+      {
+        text: diagnostico
+      }
+    ],
+    note: [
+      {
+        text: "Justificación: " + justificacion
+      },
+      {
+        text: "Fechas disponibles: " + [fechaOpcion1, fechaOpcion2, fechaOpcion3].join(', ')
+      },
+      {
+        text: "Horario preferente: " + horarioPreferente
+      }
+    ]
   };
 
-  console.log('Datos de la solicitud:', serviceRequestData);
+  console.log('Recurso FHIR ServiceRequest:', serviceRequestFHIR);
 
-  // Enviar la solicitud al backend (con trailing slash)
+  // Enviar la solicitud al backend
   fetch('https://hl7-fhir-ehr-karol-1.onrender.com/service-request/', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(serviceRequestData)
+    body: JSON.stringify(serviceRequestFHIR)
   })
   .then(response => {
     if (!response.ok) {
@@ -43,7 +70,7 @@ document.getElementById('formSolicitudProcedimiento').addEventListener('submit',
   })
   .then(data => {
     console.log('Success:', data);
-    alert('Solicitud de procedimiento creada exitosamente! ID: ' + data._id);
+    alert('Solicitud de procedimiento creada exitosamente! ID: ' + data.id);
   })
   .catch(error => {
     console.error('Error:', error);
